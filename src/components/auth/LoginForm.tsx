@@ -4,8 +4,6 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
-import { TecWordmark } from "@/components/ui/TecWordmark";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 const copy = {
@@ -58,16 +56,10 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-center">
-        <TecWordmark />
-      </div>
       <Card>
-        <CardHeader className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle>{t(copy.title, locale)}</CardTitle>
-            <p className="mt-1 text-sm text-ink-500">{t(copy.subtitle, locale)}</p>
-          </div>
-          <LanguageSwitcher />
+        <CardHeader>
+          <CardTitle>{t(copy.title, locale)}</CardTitle>
+          <p className="mt-1 text-sm text-ink-500">{t(copy.subtitle, locale)}</p>
         </CardHeader>
         <CardBody>
           <form className="space-y-4" onSubmit={submit}>
