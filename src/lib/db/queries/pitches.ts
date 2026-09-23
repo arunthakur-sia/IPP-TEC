@@ -100,7 +100,6 @@ export async function listPitchesForCoach(coachId: string): Promise<Pitch[]> {
 export async function saveUploadedDeck(
   pitchId: string,
   fileName: string,
-  storagePath: string,
   slides: Slide[],
   script: string | null
 ): Promise<void> {
@@ -109,7 +108,6 @@ export async function saveUploadedDeck(
     .from("pitches")
     .update({
       deck_file_name: fileName,
-      deck_storage_path: storagePath,
       slides,
       script,
       parse_confirmed: false,
