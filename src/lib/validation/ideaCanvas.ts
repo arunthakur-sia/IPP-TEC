@@ -1,15 +1,12 @@
 import type { IdeaCanvas, TeamProfile } from "@/lib/types/domain";
 
-const MIN_FIELD_LENGTH = 20;
-
 export interface CanvasCompleteness {
   complete: boolean;
   missingFields: string[];
 }
 
 /**
- * "The application checks canvas completeness; fields under a minimum
- * length are flagged and must be completed before the session starts. No
+ * "The application checks canvas completeness; empty fields are flagged and must be completed before the session starts. No
  * model call yet." — Agent 1 process flow, Intake.
  */
 export function checkCanvasCompleteness(canvas: IdeaCanvas, team: TeamProfile): CanvasCompleteness {
@@ -24,7 +21,7 @@ export function checkCanvasCompleteness(canvas: IdeaCanvas, team: TeamProfile): 
   ];
   for (const field of textFields) {
     const value = canvas[field];
-    if (typeof value === "string" && value.trim().length < MIN_FIELD_LENGTH) {
+    if (typeof value === "string" && !value.trim()) {
       missingFields.push(field);
     }
   }
@@ -32,5 +29,3 @@ export function checkCanvasCompleteness(canvas: IdeaCanvas, team: TeamProfile): 
 
   return { complete: missingFields.length === 0, missingFields };
 }
-
-export const CANVAS_MIN_FIELD_LENGTH = MIN_FIELD_LENGTH;

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { CANVAS_MIN_FIELD_LENGTH, checkCanvasCompleteness } from "@/lib/validation/ideaCanvas";
+import { checkCanvasCompleteness } from "@/lib/validation/ideaCanvas";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import type { Idea, IdeaCanvas, TeamProfile } from "@/lib/types/domain";
 
@@ -22,7 +22,7 @@ const copy = {
   hours: { en: "Hours/week available", ar: "الساعات المتاحة أسبوعيًا" },
   save: { en: "Save canvas", ar: "حفظ اللوحة" },
   saved: { en: "Saved", ar: "تم الحفظ" },
-  minLength: { en: `Needs at least ${CANVAS_MIN_FIELD_LENGTH} characters`, ar: `يتطلب ${CANVAS_MIN_FIELD_LENGTH} حرفًا على الأقل` },
+  required: { en: "Required", ar: "مطلوب" },
 };
 
 function t(entry: { en: string; ar: string }, locale: "en" | "ar") {
@@ -65,7 +65,7 @@ export function CanvasEditor({ idea, readOnly }: { idea: Idea; readOnly: boolean
           <label className="text-sm font-medium text-ink-700">{t(label, locale)}</label>
           {typeof value === "string" && (
             <span className={missing ? "text-xs text-verdict-refine" : "text-xs text-verdict-ready"}>
-              {missing ? t(copy.minLength, locale) : "✓"}
+              {missing ? t(copy.required, locale) : "✓"}
             </span>
           )}
         </div>
