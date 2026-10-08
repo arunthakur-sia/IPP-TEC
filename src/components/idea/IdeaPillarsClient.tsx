@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { ScorecardDimensions } from "@/components/idea/ScorecardView";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
-import type { IdeaAssessment } from "@/lib/types/domain";
+import type { Idea, IdeaAssessment } from "@/lib/types/domain";
 
 const copy = {
   title: { en: "6 pillars", ar: "الركائز الست" },
@@ -19,7 +19,7 @@ function t(entry: { en: string; ar: string }, locale: "en" | "ar") {
   return locale === "ar" ? entry.ar : entry.en;
 }
 
-export function IdeaPillarsClient({ ideaId, assessment }: { ideaId: string; assessment: IdeaAssessment | null }) {
+export function IdeaPillarsClient({ idea, assessment }: { idea: Idea; assessment: IdeaAssessment | null }) {
   const { locale } = useLocale();
 
   if (!assessment) {
@@ -30,7 +30,7 @@ export function IdeaPillarsClient({ ideaId, assessment }: { ideaId: string; asse
         </CardHeader>
         <CardBody className="space-y-3">
           <p className="text-sm text-ink-600">{t(copy.empty, locale)}</p>
-          <Link href={`/workspace/${ideaId}`} className="text-sm font-medium text-accent-700 underline">
+          <Link href={`/workspace/${idea.id}`} className="text-sm font-medium text-accent-700 underline">
             {t(copy.backLink, locale)}
           </Link>
         </CardBody>
@@ -38,5 +38,5 @@ export function IdeaPillarsClient({ ideaId, assessment }: { ideaId: string; asse
     );
   }
 
-  return <ScorecardDimensions ideaId={ideaId} assessment={assessment} />;
+  return <ScorecardDimensions idea={idea} assessment={assessment} />;
 }

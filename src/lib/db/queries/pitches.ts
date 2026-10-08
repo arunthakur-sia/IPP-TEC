@@ -62,6 +62,7 @@ export async function createPitch(input: { ideaId: string; ownerId: string; lang
 }
 
 export async function getPitchById(id: string): Promise<Pitch | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
   const db = getSupabase();
   const { data, error } = await db.from("pitches").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(`Supabase error: ${error.message}`);

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { requirePitchOwner } from "@/lib/http/pitchAccess";
 import { assignCoach, getPitchById } from "@/lib/db/queries/pitches";
 import { getDefaultUserForRole } from "@/lib/db/queries/users";
 import { getPendingPitchInterrupt, startPitchValidationRun } from "@/lib/agents/pitch-validation/runner";
 import { toErrorResponse } from "@/lib/http/errors";
+
+// Several sequential model calls per request; see README on timing.
+export const maxDuration = 300;
 
 interface Params {
   params: Promise<{ pitchId: string }>;
@@ -18,8 +22,9 @@ export async function GET(_request: Request, { params }: Params) {
 
 export async function POST(_request: Request, { params }: Params) {
   const { pitchId } = await params;
-  const pitch = await getPitchById(pitchId);
-  if (!pitch) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const access = await requirePitchOwner(pitchId);
+  if ("response" in access) return access.response;
+  const { pitch } = access;
   if (!pitch.parseConfirmed) {
     return NextResponse.json({ error: "Confirm the parsed slides before running the agent" }, { status: 400 });
   }

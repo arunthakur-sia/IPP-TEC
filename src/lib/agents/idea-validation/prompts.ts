@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { ideaValidationRubric, tecStrategicPriorities } from "@/lib/skills/ideaValidationRubric";
 import { prototypeCatalogue } from "@/lib/skills/prototypeCatalogue";
 import { sampleClarifyingQuestions } from "@/lib/skills/clarifyingQuestions";
@@ -54,12 +55,12 @@ ${sampleQuestions}`;
 
 export function ideaRecordContext(idea: Idea): string {
   const evidenceText = idea.evidence.length
-    ? idea.evidence.map((e) => `- [${e.kind}] ${e.content}${e.url ? ` (${e.url})` : ""}`).join("\n")
+    ? idea.evidence.map((e) => `- [id: ${e.id}] [${e.kind}] ${e.content}${e.url ? ` (${e.url})` : ""}`).join("\n")
     : "(none submitted)";
   const clarificationsText = idea.clarifications.length
     ? idea.clarifications
         .filter((c) => c.answer)
-        .map((c) => `- Q (${c.dimension ?? "general"}): ${c.question}\n  A: ${c.answer}`)
+        .map((c) => `- [id: ${c.id}] Q (${c.dimension ?? "general"}): ${c.question}\n  A: ${c.answer}`)
         .join("\n")
     : "(none yet)";
 
@@ -75,10 +76,10 @@ Known risks: ${idea.canvas.knownRisks}
 ## Team profile
 Size: ${idea.team.size}; skills: ${idea.team.skills.join(", ") || "(unspecified)"}; hours/week available: ${idea.team.hoursPerWeek}
 
-## Evidence pack
+## Evidence pack (cite as "evidence.<id>" using the exact id shown in brackets)
 ${evidenceText}
 
-## Clarifications answered so far
+## Clarifications answered so far (cite as "clarification.<id>" using the exact id shown in brackets)
 ${clarificationsText}`;
 }
 
@@ -95,10 +96,16 @@ export async function ideaUserContent(idea: Idea, suffix = ""): Promise<string |
   if (files.length === 0) return text;
 
   const parts: ChatCompletionContentPart[] = [{ type: "text", text }];
+  const seen = new Set<string>();
   for (const { file } of files) {
     if (!file) continue;
     const data = await downloadEvidenceFile(file.path);
     if (!data) continue;
+    // The gateway names each document by its content hash and rejects the
+    // whole request if two are identical, so send a repeated upload once.
+    const digest = createHash("sha256").update(data).digest("hex");
+    if (seen.has(digest)) continue;
+    seen.add(digest);
     const lower = file.name.toLowerCase();
     if (file.mime === "application/pdf" || lower.endsWith(".pdf")) {
       parts.push({ type: "text", text: `Evidence file: ${file.name}` });

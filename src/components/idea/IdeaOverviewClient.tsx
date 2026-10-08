@@ -89,13 +89,15 @@ export function IdeaOverviewClient({
     }
   }
 
+  // A start that failed before the first question leaves the idea in "clarify" with nothing asked yet; evidence stays editable then.
+  const evidenceLocked = idea.currentAssessmentVersion > 0 || idea.clarifications.length > 0 || (idea.stage !== "intake" && idea.stage !== "clarify");
   const hasStarted = idea.currentAssessmentVersion > 0 || pendingInterrupt !== null || idea.stage !== "intake";
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div className="space-y-4">
         <CanvasEditor idea={idea} readOnly={!isOwner} />
-        <EvidencePanel ideaId={idea.id} evidence={idea.evidence} readOnly={!isOwner} canRemove={isOwner && !hasStarted} />
+        <EvidencePanel ideaId={idea.id} evidence={idea.evidence} readOnly={!isOwner} canRemove={isOwner && !evidenceLocked} />
       </div>
 
       <div className="space-y-4">

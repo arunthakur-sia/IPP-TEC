@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
+import { Markdown } from "@/components/ui/Markdown";
 import { demoDayDefaultFormat } from "@/lib/skills/pitchRubric";
 import type { MockJuryInterruptPayload } from "@/lib/agents/pitch-validation/nodes";
 import type { MockJuryTurn } from "@/lib/types/domain";
@@ -72,7 +73,7 @@ export function MockJuryPanel({ pitchId, interrupt, log }: { pitchId: string; in
           </CardHeader>
           <CardBody className="space-y-3">
             <ProgressBar value={interrupt.turnNumber} max={interrupt.totalTurns} label={`${interrupt.turnNumber}/${interrupt.totalTurns}`} />
-            <p className="text-base font-medium text-ink-900">{interrupt.question}</p>
+            <Markdown className="text-base font-medium text-ink-900">{interrupt.question}</Markdown>
             <CountdownTimer key={interrupt.turnId} locale={locale} />
             {submitting ? (
               <p className="text-sm text-accent-700">{t(copy.thinking, locale)}</p>
@@ -96,7 +97,7 @@ export function MockJuryPanel({ pitchId, interrupt, log }: { pitchId: string; in
           <CardBody className="space-y-3">
             {log.map((turn) => (
               <div key={turn.id} className="rounded-lg border border-border p-3 text-sm">
-                <p className="font-medium text-ink-900">{turn.question}</p>
+                <Markdown className="font-medium text-ink-900">{turn.question}</Markdown>
                 {turn.answer && <p className="mt-1 text-ink-700">A: {turn.answer}</p>}
                 {turn.evaluation && <p className="mt-1 text-xs text-ink-500">{turn.evaluation}</p>}
                 {turn.modelAnswer && (

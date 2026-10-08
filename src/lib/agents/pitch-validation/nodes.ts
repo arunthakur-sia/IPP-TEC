@@ -184,7 +184,9 @@ export async function mockJuryNode(state: PitchValidationStateType) {
   const pitch = (await getPitchById(state.pitchId))!;
   await setPitchStage(pitch.id, "mock_jury");
 
-  if (pitch.mockJuryLog.length >= MOCK_JURY_QUESTION_COUNT) {
+  // Only skip once every turn is answered: on resume this node replays from
+  // the top, and the last question is already in the log (unanswered) by then.
+  if (pitch.mockJuryLog.length >= MOCK_JURY_QUESTION_COUNT && pitch.mockJuryLog.every((t) => t.answer !== null)) {
     return {};
   }
 

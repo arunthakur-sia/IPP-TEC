@@ -46,3 +46,27 @@ export async function extractEvidenceText(fileName: string, mimeType: string, bu
     return "";
   }
 }
+
+const SIGNATURES: { test: (b: Buffer) => boolean; label: string; match: (name: string, mime: string) => boolean }[] = [
+  { label: "PDF", test: (b) => b.subarray(0, 5).toString("latin1") === "%PDF-", match: (n, m) => m === "application/pdf" || n.endsWith(".pdf") },
+  { label: "PNG", test: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), match: (n, m) => m === "image/png" },
+  { label: "JPEG", test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff, match: (n, m) => m === "image/jpeg" },
+  { label: "GIF", test: (b) => b.subarray(0, 4).toString("latin1") === "GIF8", match: (n, m) => m === "image/gif" },
+  {
+    label: "WebP",
+    test: (b) => b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP",
+    match: (n, m) => m === "image/webp",
+  },
+];
+
+/**
+ * The model rejects the whole request on a corrupt PDF or image, so check the
+ * file's magic bytes against its claimed type at upload. Returns an error
+ * message, or null if the file looks valid (or is a type we only read as text).
+ */
+export function validateEvidenceFile(fileName: string, mimeType: string, buffer: Buffer): string | null {
+  const lower = fileName.toLowerCase();
+  const sig = SIGNATURES.find((s) => s.match(lower, mimeType));
+  if (sig && !sig.test(buffer)) return `"${fileName}" is not a valid ${sig.label} file`;
+  return null;
+}

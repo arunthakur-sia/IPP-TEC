@@ -21,7 +21,13 @@ export function getLlmClient(): OpenAI {
   if (!globalThis.__tecLlmClient) {
     const apiKey = process.env.LLM_GATEWAY_API_KEY;
     if (!apiKey) throw new LlmNotConfiguredError();
-    globalThis.__tecLlmClient = new OpenAI({ apiKey, baseURL: GATEWAY_BASE_URL });
+    globalThis.__tecLlmClient = new OpenAI({
+      apiKey,
+      baseURL: GATEWAY_BASE_URL,
+      // Single calls take 8-75s here; without a cap a hung gateway call holds the request for the SDK default of 10 minutes.
+      timeout: 150_000,
+      maxRetries: 1,
+    });
   }
   return globalThis.__tecLlmClient;
 }

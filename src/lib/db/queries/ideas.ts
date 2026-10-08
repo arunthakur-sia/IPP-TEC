@@ -70,7 +70,11 @@ export async function createIdea(input: {
   return assembleIdea(row);
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function getIdeaById(id: string): Promise<Idea | null> {
+  // An id from the URL that isn't a UUID can't match a row; Postgres would throw instead of returning nothing.
+  if (!UUID_PATTERN.test(id)) return null;
   const db = getSupabase();
   const { data, error } = await db.from("ideas").select("*").eq("id", id).maybeSingle();
   if (error) throw new Error(`Supabase error: ${error.message}`);

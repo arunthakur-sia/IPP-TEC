@@ -124,7 +124,7 @@ export async function assessNode(state: IdeaValidationStateType) {
     model: CAPABLE_MODEL,
     system: `${roleAndBoundaries(state.locale)}
 
-Current stage: ASSESS. Rate the idea on all six rubric dimensions. For each: give a 1-5 rating (or null only if truly insufficient information), quote the exact rubric anchor you are applying, list specific evidence found in the record (with a source reference such as canvas.problem or clarification.<n>), and list open questions. Then list assumptions to verify, the three most important reasons behind your overall read, and your confidence level. This is a single, careful pass — a second reviewer will check your work next, so be rigorous and evidence-driven rather than generous.`,
+Current stage: ASSESS. Rate the idea on all six rubric dimensions. For each: give a 1-5 rating (or null only if truly insufficient information), quote the exact rubric anchor you are applying, list specific evidence found in the record (with a source reference such as canvas.problem, clarification.<id> or evidence.<id>, using the exact id shown in the record), and list open questions. Then list assumptions to verify, the three most important reasons behind your overall read, and your confidence level. This is a single, careful pass — a second reviewer will check your work next, so be rigorous and evidence-driven rather than generous.`,
     cacheableSystem: ideaSkillsBlock(),
     messages: [{ role: "user", content: await ideaUserContent(idea) }],
     schema: ideaAssessmentModelOutputSchema,
@@ -244,6 +244,41 @@ Current stage: PROTOTYPE_PLAN. Identify the riskiest assumption behind this idea
   return {};
 }
 
+/**
+ * Persists a mentor's gate decision. Shared by mentorReviewNode (live graph
+ * resume) and the runner's durable fallback for when the in-memory checkpoint
+ * is gone, so both paths record exactly the same review and audit entry.
+ */
+export async function recordMentorDecision(
+  ideaId: string,
+  assessment: IdeaAssessment,
+  pointsToProbe: string[],
+  openedAt: string,
+  decision: MentorDecisionResume
+): Promise<void> {
+  const decidedAt = new Date().toISOString();
+  const minutesToDecide = Math.max(0, (new Date(decidedAt).getTime() - new Date(openedAt).getTime()) / 60000);
+
+  await saveMentorReview({
+    ideaId,
+    assessmentVersion: assessment.version,
+    mentorId: decision.mentorId,
+    decision: decision.decision,
+    overrodeAgent: decision.decision !== assessment.verdict,
+    reason: decision.reason,
+    pointsToProbe,
+    decidedAt,
+    minutesToDecide,
+  });
+  await logAction({
+    entityType: "idea",
+    entityId: ideaId,
+    actorId: decision.mentorId,
+    action: "mentor_review",
+    detail: `${decision.decision}${decision.decision !== assessment.verdict ? " (override)" : ""}: ${decision.reason}`,
+  });
+}
+
 export async function mentorReviewNode(state: IdeaValidationStateType) {
   const idea = (await getIdeaById(state.ideaId))!;
   // Derived from a stable DB timestamp (not `new Date()`) because LangGraph
@@ -265,27 +300,7 @@ export async function mentorReviewNode(state: IdeaValidationStateType) {
     pointsToProbe,
   });
 
-  const decidedAt = new Date().toISOString();
-  const minutesToDecide = Math.max(0, (new Date(decidedAt).getTime() - new Date(openedAt).getTime()) / 60000);
-
-  await saveMentorReview({
-    ideaId: idea.id,
-    assessmentVersion: assessment.version,
-    mentorId: decision.mentorId,
-    decision: decision.decision,
-    overrodeAgent: decision.decision !== assessment.verdict,
-    reason: decision.reason,
-    pointsToProbe,
-    decidedAt,
-    minutesToDecide,
-  });
-  await logAction({
-    entityType: "idea",
-    entityId: idea.id,
-    actorId: decision.mentorId,
-    action: "mentor_review",
-    detail: `${decision.decision}${decision.decision !== assessment.verdict ? " (override)" : ""}: ${decision.reason}`,
-  });
+  await recordMentorDecision(idea.id, assessment, pointsToProbe, openedAt, decision);
 
   return {};
 }

@@ -23,8 +23,10 @@ export async function POST(request: Request) {
   const locale = await getServerLocale();
   const body = (await request.json()) as { ideaId: string };
 
+  if (!body.ideaId) return NextResponse.json({ error: "ideaId is required" }, { status: 400 });
   const idea = await getIdeaById(body.ideaId);
   if (!idea) return NextResponse.json({ error: "Idea not found" }, { status: 404 });
+  if (idea.ownerId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const pitch = await createPitch({ ideaId: idea.id, ownerId: user.id, language: locale });
   return NextResponse.json({ pitch }, { status: 201 });

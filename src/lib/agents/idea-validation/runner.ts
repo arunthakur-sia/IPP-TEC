@@ -1,9 +1,9 @@
 import { Command, INTERRUPT, isInterrupted } from "@langchain/langgraph";
-import { answerClarification, getIdeaAssessment, getIdeaById, getLatestPrototypePlan, getMentorReview } from "@/lib/db/queries/ideas";
+import { answerClarification, getIdeaAssessment, getIdeaById, getLatestPrototypePlan, getMentorReview, setIdeaStage } from "@/lib/db/queries/ideas";
 import { MAX_CLARIFYING_QUESTIONS } from "@/lib/skills/clarifyingQuestions";
 import { derivePointsToProbe } from "./mentorBrief";
 import { ideaValidationGraph } from "./graph";
-import type { ClarifyInterruptPayload, MentorDecisionResume, MentorReviewInterruptPayload } from "./nodes";
+import { recordMentorDecision, type ClarifyInterruptPayload, type MentorDecisionResume, type MentorReviewInterruptPayload } from "./nodes";
 
 export type IdeaSessionInterrupt = ClarifyInterruptPayload | MentorReviewInterruptPayload;
 
@@ -49,11 +49,23 @@ export async function resumeIdeaValidationSession(
     // the answer directly to that row before starting a fresh graph run —
     // clarifyNode will then see it as already answered and move on to the
     // next question instead of re-asking the same one and losing the
-    // answer. (No equivalent durable-apply exists yet for a mentor
-    // decision resume — that path still falls through to a plain fresh
-    // start, which re-asks for the decision; mentor review is a single
-    // one-off HITL step rather than a per-answer loop, so it's a much
-    // rarer place to lose a live checkpoint mid-flow.)
+    // answer.
+    //
+    // A mentor decision is likewise recorded straight from the durable
+    // assessment rather than restarting the graph — a fresh run would
+    // re-assess the idea as a new version and throw the decision away.
+    if (typeof resumeValue !== "string") {
+      const idea = await getIdeaById(ideaId);
+      const reconstructed = await reconstructPendingInterrupt(ideaId);
+      if (idea && reconstructed?.type === "mentor_review_pending") {
+        const assessment = await getIdeaAssessment(ideaId, reconstructed.assessmentVersion);
+        if (assessment) {
+          await recordMentorDecision(ideaId, assessment, reconstructed.pointsToProbe, idea.updatedAt, resumeValue);
+          await setIdeaStage(ideaId, "closed");
+          return { status: "completed" };
+        }
+      }
+    }
     if (typeof resumeValue === "string") {
       const reconstructed = await reconstructPendingInterrupt(ideaId);
       if (reconstructed?.type === "clarify_question") {
