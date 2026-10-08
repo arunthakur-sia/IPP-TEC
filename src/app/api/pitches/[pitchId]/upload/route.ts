@@ -13,6 +13,7 @@ export async function POST(request: Request, { params }: Params) {
   const { pitchId } = await params;
   const access = await requirePitchOwner(pitchId);
   if ("response" in access) return access.response;
+  const { pitch } = access;
 
   const formData = await request.formData();
   const file = formData.get("deck");
@@ -42,7 +43,7 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: "No slides found in this file" }, { status: 400 });
   }
 
-  await saveUploadedDeck(pitchId, file.name, slides, typeof script === "string" && script.trim() ? script.trim() : null);
+  await saveUploadedDeck(pitchId, file.name, slides, typeof script === "string" && script.trim() ? script.trim() : null, pitch.deckVersion);
   await setPitchStage(pitchId, "parse_check");
 
   return NextResponse.json({ pitch: await getPitchById(pitchId) });

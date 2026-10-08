@@ -97,6 +97,7 @@ export async function structureNode(state: PitchValidationStateType) {
     readinessScore: null,
     verdict: null,
     hardRuleTriggered: null,
+    deckVersion: pitch.deckVersion,
     createdAt: new Date().toISOString(),
   });
 
@@ -131,6 +132,7 @@ export async function contentNode(state: PitchValidationStateType) {
     readinessScore: null,
     verdict: null,
     hardRuleTriggered: null,
+    deckVersion: pitch.deckVersion,
     createdAt: new Date().toISOString(),
   });
 
@@ -162,6 +164,7 @@ export async function coherenceNode(state: PitchValidationStateType) {
     readinessScore: null,
     verdict: null,
     hardRuleTriggered: null,
+    deckVersion: pitch.deckVersion,
     createdAt: new Date().toISOString(),
   });
 
@@ -298,6 +301,7 @@ export async function readinessNode(state: PitchValidationStateType) {
     readinessScore,
     verdict,
     hardRuleTriggered,
+    deckVersion: pitch.deckVersion,
     createdAt: new Date().toISOString(),
   };
   await savePitchRun(run);

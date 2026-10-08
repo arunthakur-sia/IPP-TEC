@@ -253,6 +253,7 @@ export interface ReadinessAction {
   priority: number;
   text: string;
   link: string; // slide:n | jury:n
+  dimension: PitchDimensionName | null;
   done: boolean;
 }
 
@@ -271,6 +272,8 @@ export interface PitchRun {
   readinessScore: number | null; // computed in app code
   verdict: PitchVerdict | null; // computed in app code
   hardRuleTriggered: string | null;
+  // The pitch's deck_version when this run was scored; a re-run needs a newer one.
+  deckVersion: number;
   createdAt: string;
 }
 
@@ -297,6 +300,8 @@ export interface Pitch {
   ownerId: string;
   deckFileName: string | null;
   deckStoragePath: string | null;
+  // Bumped on every deck upload; compared with PitchRun.deckVersion to require a revised deck before re-running.
+  deckVersion: number;
   slides: Slide[];
   parseConfirmed: boolean;
   script: string | null;

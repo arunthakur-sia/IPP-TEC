@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { PitchVerdictBadge } from "@/components/ui/Badge";
@@ -10,12 +11,16 @@ import { Markdown } from "@/components/ui/Markdown";
 import { useLocale } from "@/lib/i18n/LocaleProvider";
 import { pitchDimensionLabels, pitchVerdictLabels, label } from "@/lib/skills/glossary";
 import { pitchVerdictThresholds } from "@/lib/skills/pitchRubric";
-import type { CoachReview, PitchRun, ScoredPitchRun } from "@/lib/types/domain";
+import type { CoachReview, PitchDimensionName, PitchRun, ReadinessAction, ScoredPitchRun } from "@/lib/types/domain";
 
 const copy = {
   score: { en: "Readiness score", ar: "درجة الجاهزية" },
   dims: { en: "Dimensions", ar: "الأبعاد" },
+  dimsHint: { en: "Click a dimension to see its actions", ar: "انقر على بُعد لعرض إجراءاته" },
   actions: { en: "Prioritised actions", ar: "الإجراءات ذات الأولوية" },
+  actionsFilteredFor: { en: "Actions for", ar: "إجراءات" },
+  clearFilter: { en: "Show all", ar: "عرض الكل" },
+  noActionsForDim: { en: "No open actions for this dimension.", ar: "لا توجد إجراءات مفتوحة لهذا البُعد." },
   trend: { en: "Version trend", ar: "اتجاه النسخ" },
   coachStatus: { en: "Coach status", ar: "حالة المدرّب" },
   goToCoach: { en: "Go to coach review", ar: "الانتقال إلى مراجعة المدرّب" },
@@ -41,7 +46,19 @@ export function ReadinessDashboard({
   coachReview: CoachReview | null;
 }) {
   const { locale } = useLocale();
-  const [done, setDone] = useState<Set<number>>(new Set());
+  const router = useRouter();
+  const [selectedDimension, setSelectedDimension] = useState<PitchDimensionName | null>(null);
+
+  async function toggleDone(action: ReadinessAction, done: boolean) {
+    await fetch(`/api/pitches/${pitchId}/actions`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority: action.priority, done }),
+    });
+    router.refresh();
+  }
+
+  const visibleActions = selectedDimension ? run.actions.filter((a) => a.dimension === selectedDimension) : run.actions;
 
   const zones = [
     { from: 1, to: pitchVerdictThresholds.rework.max, color: "var(--color-verdict-pivot-bg)", label: t(copy.rework, locale) },
@@ -73,35 +90,42 @@ export function ReadinessDashboard({
           <CardTitle>{t(copy.dims, locale)}</CardTitle>
         </CardHeader>
         <CardBody>
-          <DimensionBars rows={run.dimensions.map((d) => ({ label: label(pitchDimensionLabels[d.name], locale), value: d.rating }))} />
+          <p className="mb-2 text-xs text-ink-500">{t(copy.dimsHint, locale)}</p>
+          <DimensionBars
+            rows={run.dimensions.map((d) => ({ id: d.name, label: label(pitchDimensionLabels[d.name], locale), value: d.rating }))}
+            selected={selectedDimension}
+            onSelect={(id) => setSelectedDimension((prev) => (prev === id ? null : (id as PitchDimensionName)))}
+          />
         </CardBody>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>{t(copy.actions, locale)}</CardTitle>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>
+            {t(copy.actions, locale)}
+            {selectedDimension && (
+              <span className="ml-2 text-xs font-normal text-ink-500">
+                {t(copy.actionsFilteredFor, locale)} {label(pitchDimensionLabels[selectedDimension], locale)}
+              </span>
+            )}
+          </CardTitle>
+          {selectedDimension && (
+            <button type="button" onClick={() => setSelectedDimension(null)} className="text-xs text-accent-700 underline">
+              {t(copy.clearFilter, locale)}
+            </button>
+          )}
         </CardHeader>
         <CardBody className="space-y-2">
-          {run.actions.map((a) => (
-            <label key={a.priority} className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={done.has(a.priority)}
-                onChange={(e) =>
-                  setDone((prev) => {
-                    const next = new Set(prev);
-                    if (e.target.checked) next.add(a.priority);
-                    else next.delete(a.priority);
-                    return next;
-                  })
-                }
-              />
-              <Markdown className={`flex-1 ${done.has(a.priority) ? "text-ink-400 line-through" : "text-ink-800"}`}>
-                {a.text}
-              </Markdown>
-            </label>
-          ))}
+          {visibleActions.length === 0 ? (
+            <p className="text-sm text-ink-500">{t(copy.noActionsForDim, locale)}</p>
+          ) : (
+            visibleActions.map((a) => (
+              <label key={a.priority} className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={a.done} onChange={(e) => toggleDone(a, e.target.checked)} />
+                <Markdown className={`flex-1 ${a.done ? "text-ink-400 line-through" : "text-ink-800"}`}>{a.text}</Markdown>
+              </label>
+            ))
+          )}
         </CardBody>
       </Card>
 
