@@ -127,7 +127,57 @@ interface EvidenceRow {
   kind: EvidenceItem["kind"];
   content: string;
   url: string | null;
+  file_path: string | null;
+  file_name: string | null;
+  file_mime: string | null;
   created_at: string;
+}
+
+function toEvidenceItem(r: EvidenceRow): EvidenceItem {
+  return {
+    id: r.id,
+    kind: r.kind,
+    content: r.content,
+    url: r.url ?? undefined,
+    file: r.file_path ? { path: r.file_path, name: r.file_name ?? "file", mime: r.file_mime ?? "application/octet-stream" } : undefined,
+    createdAt: r.created_at,
+  };
+}
+
+export const EVIDENCE_BUCKET = "idea-evidence";
+
+export async function addEvidenceFile(ideaId: string, fileName: string, mime: string, data: Buffer): Promise<EvidenceItem> {
+  const db = getSupabase();
+  const path = `${ideaId}/${crypto.randomUUID()}-${fileName.replace(/[^\w.-]+/g, "_")}`;
+  const { error } = await db.storage.from(EVIDENCE_BUCKET).upload(path, data, { contentType: mime || "application/octet-stream" });
+  if (error) throw new Error(`Storage error: ${error.message}`);
+  const row = unwrap(
+    await db
+      .from("idea_evidence")
+      .insert({ idea_id: ideaId, kind: "file", content: fileName, file_path: path, file_name: fileName, file_mime: mime })
+      .select()
+      .single()
+  ) as EvidenceRow;
+  await db.from("ideas").update({ updated_at: new Date().toISOString() }).eq("id", ideaId);
+  return toEvidenceItem(row);
+}
+
+export async function removeEvidence(ideaId: string, evidenceId: string): Promise<void> {
+  const db = getSupabase();
+  const row = unwrap(
+    await db.from("idea_evidence").select("*").eq("id", evidenceId).eq("idea_id", ideaId).maybeSingle()
+  ) as EvidenceRow | null;
+  if (!row) return;
+  if (row.file_path) await db.storage.from(EVIDENCE_BUCKET).remove([row.file_path]);
+  const { error } = await db.from("idea_evidence").delete().eq("id", evidenceId);
+  if (error) throw new Error(`Supabase error: ${error.message}`);
+  await db.from("ideas").update({ updated_at: new Date().toISOString() }).eq("id", ideaId);
+}
+
+export async function downloadEvidenceFile(path: string): Promise<Buffer | null> {
+  const { data, error } = await getSupabase().storage.from(EVIDENCE_BUCKET).download(path);
+  if (error || !data) return null;
+  return Buffer.from(await data.arrayBuffer());
 }
 
 export async function listEvidence(ideaId: string): Promise<EvidenceItem[]> {
@@ -135,7 +185,7 @@ export async function listEvidence(ideaId: string): Promise<EvidenceItem[]> {
   const rows = unwrap(
     await db.from("idea_evidence").select("*").eq("idea_id", ideaId).order("created_at")
   ) as EvidenceRow[];
-  return rows.map((r) => ({ id: r.id, kind: r.kind, content: r.content, url: r.url ?? undefined, createdAt: r.created_at }));
+  return rows.map(toEvidenceItem);
 }
 
 export async function addEvidence(
@@ -149,7 +199,7 @@ export async function addEvidence(
     await db.from("idea_evidence").insert({ idea_id: ideaId, kind, content, url: url ?? null }).select().single()
   ) as EvidenceRow;
   await db.from("ideas").update({ updated_at: new Date().toISOString() }).eq("id", ideaId);
-  return { id: row.id, kind: row.kind, content: row.content, url: row.url ?? undefined, createdAt: row.created_at };
+  return toEvidenceItem(row);
 }
 
 // -- Clarifications --

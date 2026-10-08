@@ -1,6 +1,9 @@
 import { ideaValidationRubric, tecStrategicPriorities } from "@/lib/skills/ideaValidationRubric";
 import { prototypeCatalogue } from "@/lib/skills/prototypeCatalogue";
 import { sampleClarifyingQuestions } from "@/lib/skills/clarifyingQuestions";
+import type { ChatCompletionContentPart } from "openai/resources/chat/completions";
+import { downloadEvidenceFile } from "@/lib/db/queries/ideas";
+import { extractEvidenceText } from "@/lib/parsing/evidenceFile";
 import type { Idea } from "@/lib/types/domain";
 
 // Appendix B, "Role and boundaries": shared by every stage call for Agent 1.
@@ -67,7 +70,6 @@ Affected users: ${idea.canvas.affectedUsers}
 Current workaround: ${idea.canvas.currentWorkaround}
 Proposed solution: ${idea.canvas.proposedSolution}
 Expected value to TEC: ${idea.canvas.expectedValue}
-Alignment tags: ${idea.canvas.alignmentTags.join(", ") || "(none)"}
 Known risks: ${idea.canvas.knownRisks}
 
 ## Team profile
@@ -78,4 +80,36 @@ ${evidenceText}
 
 ## Clarifications answered so far
 ${clarificationsText}`;
+}
+
+const NATIVE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+/**
+ * The user message for an idea: the text record plus every uploaded evidence
+ * file passed straight to the model (PDFs and images natively; DOCX/text
+ * files as extracted text, since the model can't read those formats).
+ */
+export async function ideaUserContent(idea: Idea, suffix = ""): Promise<string | ChatCompletionContentPart[]> {
+  const text = `${ideaRecordContext(idea)}${suffix}`;
+  const files = idea.evidence.filter((e) => e.file);
+  if (files.length === 0) return text;
+
+  const parts: ChatCompletionContentPart[] = [{ type: "text", text }];
+  for (const { file } of files) {
+    if (!file) continue;
+    const data = await downloadEvidenceFile(file.path);
+    if (!data) continue;
+    const lower = file.name.toLowerCase();
+    if (file.mime === "application/pdf" || lower.endsWith(".pdf")) {
+      parts.push({ type: "text", text: `Evidence file: ${file.name}` });
+      parts.push({ type: "file", file: { filename: file.name, file_data: `data:application/pdf;base64,${data.toString("base64")}` } });
+    } else if (NATIVE_IMAGE_TYPES.includes(file.mime)) {
+      parts.push({ type: "text", text: `Evidence image: ${file.name}` });
+      parts.push({ type: "image_url", image_url: { url: `data:${file.mime};base64,${data.toString("base64")}` } });
+    } else {
+      const extracted = await extractEvidenceText(file.name, file.mime, data);
+      parts.push({ type: "text", text: extracted ? `Evidence file: ${file.name}\n${extracted}` : `Evidence file: ${file.name} (format not readable by the model)` });
+    }
+  }
+  return parts;
 }

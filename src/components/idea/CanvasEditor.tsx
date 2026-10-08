@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CANVAS_MIN_FIELD_LENGTH, checkCanvasCompleteness } from "@/lib/validation/ideaCanvas";
@@ -14,7 +15,6 @@ const copy = {
   currentWorkaround: { en: "Current workaround", ar: "الحل البديل الحالي" },
   proposedSolution: { en: "Proposed solution", ar: "الحل المقترح" },
   expectedValue: { en: "Expected value to TEC", ar: "القيمة المتوقعة للمجلس" },
-  alignmentTags: { en: "Alignment tags (comma separated)", ar: "علامات التوافق (مفصولة بفواصل)" },
   knownRisks: { en: "Known risks", ar: "المخاطر المعروفة" },
   team: { en: "Team profile", ar: "ملف الفريق" },
   size: { en: "Team size", ar: "حجم الفريق" },
@@ -29,10 +29,16 @@ function t(entry: { en: string; ar: string }, locale: "en" | "ar") {
   return locale === "ar" ? entry.ar : entry.en;
 }
 
+function parseSkills(text: string) {
+  return text.split(/[,،;]/).map((s) => s.trim()).filter(Boolean);
+}
+
 export function CanvasEditor({ idea, readOnly }: { idea: Idea; readOnly: boolean }) {
   const { locale } = useLocale();
+  const router = useRouter();
   const [canvas, setCanvas] = useState<IdeaCanvas>(idea.canvas);
   const [team, setTeam] = useState<TeamProfile>(idea.team);
+  const [skillsText, setSkillsText] = useState(idea.team.skills.join(", "));
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -43,10 +49,11 @@ export function CanvasEditor({ idea, readOnly }: { idea: Idea; readOnly: boolean
     await fetch(`/api/ideas/${idea.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canvas, team }),
+      body: JSON.stringify({ canvas, team: { ...team, skills: parseSkills(skillsText) } }),
     });
     setSaving(false);
     setSavedAt(Date.now());
+    router.refresh();
   }
 
   function field(key: keyof IdeaCanvas, label: { en: string; ar: string }, multiline = true) {
@@ -88,15 +95,6 @@ export function CanvasEditor({ idea, readOnly }: { idea: Idea; readOnly: boolean
         {field("proposedSolution", copy.proposedSolution)}
         {field("expectedValue", copy.expectedValue)}
         {field("knownRisks", copy.knownRisks)}
-        <div>
-          <label className="mb-1 block text-sm font-medium text-ink-700">{t(copy.alignmentTags, locale)}</label>
-          <input
-            disabled={readOnly}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm disabled:bg-muted"
-            value={canvas.alignmentTags.join(", ")}
-            onChange={(e) => setCanvas((c) => ({ ...c, alignmentTags: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))}
-          />
-        </div>
 
         <div className="border-t border-border pt-4">
           <h4 className="mb-2 text-sm font-semibold text-ink-800">{t(copy.team, locale)}</h4>
@@ -129,8 +127,8 @@ export function CanvasEditor({ idea, readOnly }: { idea: Idea; readOnly: boolean
             <input
               disabled={readOnly}
               className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm disabled:bg-muted"
-              value={team.skills.join(", ")}
-              onChange={(e) => setTeam((tm) => ({ ...tm, skills: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))}
+              value={skillsText}
+              onChange={(e) => setSkillsText(e.target.value)}
             />
           </div>
         </div>

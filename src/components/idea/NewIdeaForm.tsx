@@ -35,7 +35,6 @@ export function NewIdeaForm() {
     currentWorkaround: "",
     proposedSolution: "",
     expectedValue: "",
-    alignmentTags: [],
     knownRisks: "",
   });
   const [team, setTeam] = useState<TeamProfile>({ size: 1, skills: [], hoursPerWeek: 5 });

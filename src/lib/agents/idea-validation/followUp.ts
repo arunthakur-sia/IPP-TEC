@@ -2,7 +2,7 @@ import { runStructured } from "@/lib/llm/structured";
 import { FAST_MODEL, MAX_OUTPUT_TOKENS } from "@/lib/llm/models";
 import { followUpCheckInSchema, type FollowUpCheckInOutput } from "@/lib/schemas/idea";
 import { getIdeaAssessment, getLatestPrototypePlan } from "@/lib/db/queries/ideas";
-import { ideaRecordContext, roleAndBoundaries } from "./prompts";
+import { ideaUserContent, roleAndBoundaries } from "./prompts";
 import type { Idea } from "@/lib/types/domain";
 
 /**
@@ -23,7 +23,7 @@ Current stage: FOLLOW-UP (phase 4, weekly check-in). The team already has a prot
     messages: [
       {
         role: "user",
-        content: `${ideaRecordContext(idea)}\n\nPrototype plan: ${plan ? JSON.stringify(plan) : "(none yet)"}\nLast verdict: ${assessment?.verdict ?? "(none)"}\n\nTeam's update this week:\n${updateText}`,
+        content: await ideaUserContent(idea, `\n\nPrototype plan: ${plan ? JSON.stringify(plan) : "(none yet)"}\nLast verdict: ${assessment?.verdict ?? "(none)"}\n\nTeam's update this week:\n${updateText}`),
       },
     ],
     schema: followUpCheckInSchema,

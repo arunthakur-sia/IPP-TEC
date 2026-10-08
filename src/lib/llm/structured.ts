@@ -1,13 +1,13 @@
 import { zodResponseFormat } from "openai/helpers/zod";
 import { LengthFinishReasonError } from "openai/core/error";
 import type { z } from "zod";
+import type { ChatCompletionContentPart } from "openai/resources/chat/completions";
 import { assertLlmConfigured, getLlmClient } from "./client";
 import { MAX_OUTPUT_TOKENS } from "./models";
 
-export interface StructuredMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+export type StructuredMessage =
+  | { role: "user"; content: string | ChatCompletionContentPart[] }
+  | { role: "assistant"; content: string };
 
 export interface StructuredCallParams<T extends z.ZodType> {
   model: string;
@@ -39,7 +39,7 @@ export async function runStructured<T extends z.ZodType>(
   const attempt = async (extraMessages: StructuredMessage[], maxTokens: number): Promise<z.infer<T>> => {
     const messages = [{ role: "system" as const, content: systemContent }, ...params.messages, ...extraMessages];
     const requestId = Math.random().toString(36).slice(2, 8);
-    console.log(`[llm:${requestId}] request`, JSON.stringify({ model: params.model, maxTokens, messages }, null, 2));
+    console.log(`[llm:${requestId}] request`, JSON.stringify({ model: params.model, maxTokens, messages }, (k, v) => (k === "file_data" || k === "url" ? "[data omitted]" : v), 2));
 
     const startedAt = Date.now();
     let completion;

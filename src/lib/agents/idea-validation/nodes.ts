@@ -24,7 +24,7 @@ import {
 } from "@/lib/db/queries/ideas";
 import { logAction } from "@/lib/db/queries/auditLog";
 import { derivePointsToProbe } from "./mentorBrief";
-import { ideaRecordContext, ideaSkillsBlock, roleAndBoundaries } from "./prompts";
+import { ideaUserContent, ideaSkillsBlock, roleAndBoundaries } from "./prompts";
 import type { IdeaValidationStateType } from "./state";
 import type { IdeaAssessment, IdeaVerdict, PrototypeOption, PrototypePlan } from "@/lib/types/domain";
 
@@ -85,7 +85,7 @@ export async function clarifyNode(state: IdeaValidationStateType) {
 
 Current stage: CLARIFY. Ask the single next most useful clarifying question, targeting whichever rubric dimension is least covered by the canvas, evidence and prior answers. Signal coverageComplete=true (with question and whyWeAsk set to null) once all six dimensions have enough information, or if you genuinely have nothing more useful to ask. Never repeat a question already asked. Ask only one question.`,
       cacheableSystem: ideaSkillsBlock(),
-      messages: [{ role: "user", content: ideaRecordContext(idea) }],
+      messages: [{ role: "user", content: await ideaUserContent(idea) }],
       schema: clarifyQuestionSchema,
       maxTokens: MAX_OUTPUT_TOKENS,
     });
@@ -126,7 +126,7 @@ export async function assessNode(state: IdeaValidationStateType) {
 
 Current stage: ASSESS. Rate the idea on all six rubric dimensions. For each: give a 1-5 rating (or null only if truly insufficient information), quote the exact rubric anchor you are applying, list specific evidence found in the record (with a source reference such as canvas.problem or clarification.<n>), and list open questions. Then list assumptions to verify, the three most important reasons behind your overall read, and your confidence level. This is a single, careful pass — a second reviewer will check your work next, so be rigorous and evidence-driven rather than generous.`,
     cacheableSystem: ideaSkillsBlock(),
-    messages: [{ role: "user", content: ideaRecordContext(idea) }],
+    messages: [{ role: "user", content: await ideaUserContent(idea) }],
     schema: ideaAssessmentModelOutputSchema,
     maxTokens: MAX_OUTPUT_TOKENS,
   });
@@ -144,7 +144,7 @@ export async function critiqueNode(state: IdeaValidationStateType) {
     system: `You are the quality-control reviewer for the TEC Idea Validation Agent's own output. The participant never sees this pass. Check the draft assessment for: ratings given without a real quoted piece of evidence, evidence that does not actually appear in the record below, contradictory ratings, and anchors that don't match the rating given. Where a rating lacks real evidence, set it to null and add an open question asking for that evidence rather than leaving an unsupported rating. Return the full corrected assessment (unchanged fields included) and a short list of what you changed, if anything.`,
     cacheableSystem: ideaSkillsBlock(),
     messages: [
-      { role: "user", content: ideaRecordContext(idea) },
+      { role: "user", content: await ideaUserContent(idea) },
       { role: "assistant", content: JSON.stringify(state.draftAssessment) },
       { role: "user", content: "Critique the assessment above against the record and return the corrected version." },
     ],
@@ -171,7 +171,7 @@ export async function verdictNode(state: IdeaValidationStateType) {
       messages: [
         {
           role: "user",
-          content: `${ideaRecordContext(idea)}\n\nAssessment dimensions: ${JSON.stringify(state.draftAssessment.dimensions)}`,
+          content: await ideaUserContent(idea, `\n\nAssessment dimensions: ${JSON.stringify(state.draftAssessment.dimensions)}`),
         },
       ],
       schema: pivotReframingsSchema,
@@ -224,7 +224,7 @@ export async function prototypePlanNode(state: IdeaValidationStateType) {
 Current stage: PROTOTYPE_PLAN. Identify the riskiest assumption behind this idea. Working down the fidelity ladder from rung 1, select the lowest-fidelity prototype that could test that assumption, plus one alternative. Never recommend building the full solution. Explain why you did not choose a higher-fidelity option. Each option needs a concrete test protocol, number of users, metric, success threshold and what the team does if the threshold is missed.`,
     cacheableSystem: ideaSkillsBlock(),
     messages: [
-      { role: "user", content: `${ideaRecordContext(idea)}\n\nAssessment: ${JSON.stringify(assessment)}` },
+      { role: "user", content: await ideaUserContent(idea, `\n\nAssessment: ${JSON.stringify(assessment)}`) },
     ],
     schema: prototypePlanModelOutputSchema,
     maxTokens: MAX_OUTPUT_TOKENS,

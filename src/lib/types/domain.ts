@@ -61,7 +61,6 @@ export interface IdeaCanvas {
   currentWorkaround: string;
   proposedSolution: string;
   expectedValue: string;
-  alignmentTags: string[];
   knownRisks: string;
 }
 
@@ -76,6 +75,8 @@ export interface EvidenceItem {
   kind: "note" | "data_point" | "link" | "file";
   content: string;
   url?: string;
+  /** Uploaded file (kind "file"): storage path, original name and MIME type. */
+  file?: { path: string; name: string; mime: string };
   createdAt: string;
 }
 
